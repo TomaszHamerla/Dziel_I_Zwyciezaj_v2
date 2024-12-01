@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obliczanie Zapotrzebowania</title>
+    <style>
+        body {
+    font-family: Arial, sans-serif;
+    background-color: #757171;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.container {
+    background: #a7a2a2;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    width: 600px;
+    text-align: center;
+    margin-top: 2rem;
+    margin-left: auto;
+    margin-right: auto;
+    flex-grow: 1;
+}
+
+
+h1 {
+    margin-bottom: 20px;
+}
+
+.inputGroup {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 10px;
+}
+
+label {
+    font-size: 14px;
+}
+
+input {
+    width: 100px;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+button {
+    padding: 10px 15px;
+    background-color: #007BFF;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 5px;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+#result {
+    margin-top: 20px;
+    font-size: 16px;
+    font-weight: bold;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+#constantSelection {
+    display: grid;
+    grid-template-columns: 1fr 1fr;  
+    margin-bottom: 15px;
+    text-align: left;
+}
+
+#constantSelection label {
+    margin-right: 10px;
+    font-size: 14px;
+}
+
+.deleteRowButton {
+    background-color: #dc3545;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    padding: 5px 10px;
+    margin-left: 10px;
+}
+
+.deleteRowButton:hover {
+    background-color: #bd2130;
+}
+
+.resultRow {
+    display: flex;
+    justify-content: start;
+}
+
+.resultRowCut {
+    color: #05600d;
+}
+
+.resultRowLi {
+    margin: 1rem;
+    text-align: justify;
+}
+
+.footer-container {
+    width: 100%;
+}
+
+.footer {
+    display: flex;
+    border-top: 1px solid #ab0d0d;
+    position: sticky;
+    bottom: 0; 
+    font-size: 0.9rem;
+    justify-content: center;
+    width: 100%;
+}
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Obliczanie zapotrzebowania na pręty</h1>
+        <form id="inputForm">
+            <div id="constantSelection">
+                <label>
+                    <input type="radio" name="constant" value="6000" checked>
+                    Stała: 6.0 m
+                </label>
+                <label>
+                    <input type="radio" name="constant" value="6100">
+                    Stała: 6.1 m
+                </label>
+                <label>
+                    <input type="radio" name="constant" value="12000">
+                    Stała: 12.0 m
+                </label>
+                <label>
+                    <input type="radio" name="constant" value="12100">
+                    Stała: 12.1 m
+                </label>
+            </div>
+            <div id="inputsContainer">
+                <div class="inputGroup">
+                    <label for="length1">Długość (mm):</label>
+                    <input type="number" id="length1" class="length" required>
+                    <label for="quantity1">Ilość:</label>
+                    <input type="number" id="quantity1" class="quantity" required>
+                </div>
+            </div>
+            <button type="button" id="addRowButton">Dodaj wiersz</button>
+            <button type="button" id="calculateButton">Oblicz</button>
+        </form>
+        <div id="result"></div>
+        <div id="cutSketch" style="margin-top: 20px;"></div>
+    </div>
+    <div class="footer-container">
+        <p class="footer">
+            &copy;Made by Tomasz Hamerla
+          </p>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+    let rowCount = 1;
+
+    const addRowButton = document.getElementById('addRowButton');
+    const calculateButton = document.getElementById('calculateButton');
+    const inputsContainer = document.getElementById('inputsContainer');
+    const resultDiv = document.getElementById('result');
+
+    const addRow = () => {
+        rowCount++;
+        const inputGroup = document.createElement('div');
+        inputGroup.classList.add('inputGroup');
+        inputGroup.setAttribute('id', `row${rowCount}`);
+        inputGroup.innerHTML = `
+            <label for="length${rowCount}">Długość (mm):</label>
+            <input type="number" id="length${rowCount}" class="length" required>
+            <label for="quantity${rowCount}">Ilość:</label>
+            <input type="number" id="quantity${rowCount}" class="quantity" required>
+            <button type="button" class="deleteRowButton" data-row="row${rowCount}">Usuń</button>
+        `;
+        inputsContainer.appendChild(inputGroup);
+
+        inputGroup.querySelector('.deleteRowButton').addEventListener('click', (e) => {
+            const rowId = e.target.getAttribute('data-row');
+            const row = document.getElementById(rowId);
+            if (row) {
+                row.remove();
+            }
+        });
+    };
+
+    addRowButton.addEventListener('click', addRow);
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            addRow();
+        }
+    });
+
+const calculate = () => {
+    resultDiv.textContent = '';
+
+    const lengths = document.querySelectorAll('.length');
+    const quantities = document.querySelectorAll('.quantity');
+    const constantSelection = document.querySelector('input[name="constant"]:checked');
+    const MAX_LENGTH = parseInt(constantSelection?.value);
+
+    if (!constantSelection || isNaN(MAX_LENGTH)) {
+        resultDiv.textContent = 'Wybierz poprawną długość pręta.';
+        return;
+    }
+
+    let materialSegments = [];
+    let totalRequiredLength = 0;
+
+    for (let i = 0; i < lengths.length; i++) {
+        const length = parseInt(lengths[i].value);
+        const quantity = parseInt(quantities[i].value);
+
+        if (isNaN(length) || isNaN(quantity) || length <= 0 || quantity <= 0) {
+            resultDiv.textContent = 'Upewnij się, że wszystkie dane są poprawne.';
+            return;
+        }
+
+        if (length > MAX_LENGTH) {
+            resultDiv.textContent = `Długość pręta nie może przekroczyć ${MAX_LENGTH} mm.`;
+            return;
+        }
+
+        for (let j = 0; j < quantity; j++) {
+            materialSegments.push(length);
+        }
+
+        totalRequiredLength += length * quantity;
+    }
+
+    materialSegments.sort((a, b) => b - a);
+
+    let totalBars = 0;
+    let totalWaste = 0;
+    let cuts = [];
+    let barLengths = [];
+
+    while (materialSegments.length > 0) {
+        let remainingLength = MAX_LENGTH;
+        totalBars++;
+
+        let currentCuts = [];
+        for (let i = 0; i < materialSegments.length; i++) {
+            if (materialSegments[i] <= remainingLength) {
+                remainingLength -= materialSegments[i];
+                currentCuts.push(materialSegments[i]);
+                materialSegments.splice(i, 1);
+                i--; 
+            }
+        }
+
+        barLengths.push(MAX_LENGTH - remainingLength);
+        cuts.push(currentCuts);
+        totalWaste += remainingLength; 
+    }
+
+    const barDiv = document.createElement('div');
+    barDiv.classList.add('resultRow');
+    barDiv.textContent = `Potrzebne pręty: ${totalBars}`;
+    resultDiv.appendChild(barDiv);
+
+    const wasteDiv = document.createElement('div');
+    wasteDiv.classList.add('resultRow');
+    wasteDiv.textContent = `Pozostały odpad: ${totalWaste} mm`;
+    resultDiv.appendChild(wasteDiv);
+
+    const lengthDiv = document.createElement('div');
+    lengthDiv.classList.add('resultRow');
+    lengthDiv.textContent = `Długość pręta: ${MAX_LENGTH / 1000} m`;
+    resultDiv.appendChild(lengthDiv);
+
+    const totalLengthDiv = document.createElement('div');
+    totalLengthDiv.classList.add('resultRow');
+    totalLengthDiv.textContent = `Całkowita długość potrzebna: ${totalRequiredLength} mm`;
+    resultDiv.appendChild(totalLengthDiv);
+
+    const cutsDiv = document.createElement('ul');
+    cutsDiv.classList.add('resultRowCut');
+    cutsDiv.textContent = `Cięcia prętów:`;
+
+    cuts.forEach((cut, index) => {
+        const cutRow = document.createElement('li');
+        cutRow.classList.add('resultRowLi');
+        const totalCutLength = cut.reduce((sum, length) => sum + length, 0);
+        cutRow.textContent = `Pręt ${index + 1}: ${cut.join(' mm, ')} mm (Suma: ${totalCutLength} mm, Odpad: ${MAX_LENGTH - totalCutLength} mm)`;
+        cutsDiv.appendChild(cutRow);
+    });
+
+    resultDiv.appendChild(cutsDiv);
+};
+
+
+    calculateButton.addEventListener('click', calculate);
+});
+
+    </script>
+</body>
+</html>
